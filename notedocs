@@ -1,0 +1,23 @@
+Ansible
+=====================================
+
+Access key
+If you lose or forget your secret access key, you cannot retrieve it. Instead, create a new access key and make the old key inactive.
+
+
+
+>>>>>>>>>>>>>>>>>>>>>Configuration management tool<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+chef - pull based mechanism
+ansible - push based mechanism
+
+
+=================================================================================
+
+ansible playbook
+
+========================================================================
+
+ansible-playbook ping.yml
+ansible all -m ping
+ansible-playbook --syntax-check ping.yml			-for syntax check
