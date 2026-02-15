@@ -1,0 +1,452 @@
+Ansible Lab Steps
+
+=====================================================================================================
+Login to AWS Console
+
+Lab 1: Installation and Configuration of Ansible
+
+Launch a RHEL 9 instance in us-east-1. Choose t2.micro. In security group, allow SSH (22) and HTTP (80) for all incoming traffic. Add Tag Name: Ansible-ControlNode
+
+Once the EC2 is up & running, SSH into one of it and set the hostname as 'Control-Node'.
+
+Step 1:
+
+Go to your AWS management console and launch an RHEL instance. Use Putty/MobaXterm to SSH into the instances once they start running.
+
+Step 2:
+
+Next, we will be installing Python3 in our RHEL 8 EC2 instances. If you have a special requirement of Python2, mention Python2 in the command, otherwise use the command below as is.
+
+#yum install python3 -y
+
+Step 3:
+
+Now, you must install Python3-pip on the instance. Pip is a package manager for Python that allows you to install and manage additional Python packages which are not part of the standard python library.
+
+#yum -y install python3-pip
+
+Step 4:
+
+We wouldn’t be able to install Ansible as a root user here, because in RHEL 8, this operation is not allowed. So, we are going to create a new user and setup a password for it.
+
+#useradd ansiblecontrol
+
+#passwd ansiblecontrol
+
+For the second instance, create a user named, “managedhost” and setup a password for it as well.
+
+-----------------------------------------------------------------------------------------------------
+Alternate Create password for ec2-user on both controller and host machine
+
+# passwd ec2-user
+Newpassword:
+ConfirmPassword:
+
+------------------------------------------------------------------------------------------------------
+
+Once completed, we should add the user ‘ansiblecontrol’ to sudoers file for sudo access. Use the command below to do that.
+
+#echo “managedhost ALL=(ALL) NOPASSWD: ALL” >> /etc/sudoers
+
+Similarly, repeat the above with the user “managedhost” in the second instance.
+
+Step 5:
+
+The control node, also referred to as Ansible Master, connects to the managed host using SSH. Though using key-based authentication is recommended, when you are at a learning stage, use password-based authentication.
+
+Edit the sshd_config file in /etc/ssh directory using vi.
+
+#vi /etc/ssh/sshd_config
+
+Find the PasswordAuthentication string in that file and change the value against it to ‘yes’. Save and quit the file.
+
+Reload sshd service using the command below:
+
+#service sshd reload
+
+Step 6:
+
+In RHEL 8, Ansible cannot be installed as a root user. So, we are going to install Ansible after switching user to the one which we created earlier in Step 4. Use the commands provided below for the same.
+
+#su ansiblecontrol
+
+$pip3 install ansible --user
+
+Step 7:
+
+Let’s check the Ansible version and its config file.
+
+$ansible --version
+
+We also need a hosts file to be able to run playbooks, so we are going to create the required directory and files as well.
+
+$sudo mkdir /etc/ansible
+
+$cd /etc/ansible/
+
+$sudo vi hosts
+
+[webservers]
+<<Private_ip_address of worker node>>
+
+We will now create a file named ‘hosts’ in the Ansible directory and input the private IPs of the managed hosts.
+
+You have to mention the private IP of the managed host under [webservers]. This is called creating a group.
+
+we can configure password-less authentication between the ansible-control host and managed hosts. Run the command below in the Ansible directory:
+
+$ssh-keygen
+
+You need to copy the public key to the target instances, for Ansible to be able to connect to them. Note that you should allow the security group to allow SSH connection from the control node to managed host. Copy the public key to the managed host using the following command:
+
+$ssh-copy-id managedhost@10.0.0.14
+
+------------------------------------------------------------------------------------------
+Alternative way to copy manually public key
+
+From your local machine (Ansible control node):
+
+cat ~/.ssh/id_rsa.pub
+copy the output (your public key).
+
+On the remote host (if you have another way to log in):
+
+mkdir -p ~/.ssh
+echo "PASTE_YOUR_PUBLIC_KEY_HERE" >> ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+
+SELinux: If enabled, it might block SSH key auth. Temporarily set to permissive:
+
+sudo setenforce 0
+
+------------------------------------------------------------------------------------------------
+
+Once this is done, you can go the sshd_config file and disable the password authentication, which is a hardening technique you can use. It will make the instance secure as well. Path for the sshd_config file is:
+
+/etc/ssh/sshdconfig
+
+Step 8:
+
+Go to the hosts file in the /etc/ansible directory and edit the file. Add the username for the managed instance as ‘managedhost’ and then save the file.
+
+[webservers]
+<<Private_ip_address of worker node>> ansible_user=managedhost
+
+Install AWS CLI via yum (Recommended)
+
+sudo yum update -y
+
+sudo yum install -y awscli
+
+aws --version
+
+aws configure
+
+provide your access key and secret
+
+Let’s check the Ansible connection now. Run the command below to run ping module:
+
+$ansible all -m ping
+
+If it is success; and at the end “ping” : “pong” which is Ansible’s way of saying the ping has been successful.
+
+
+vi /etc/ansible/hosts
+
+node1 ansible_ssh_host=172.31.7.239 ansible_ssh_user=ec2-user
+node2 ansible_ssh_host=172.31.5.65 ansible_ssh_user=ec2-user
+
+e.g. node1 ansible_ssh_host=172.31.14.113 ansible_ssh_user=ec2-user node2 ansible_ssh_host=172.31.2.229 ansible_ssh_user=ec2-user
+
+Save the file using "ESCAPE + :wq!"
+
+list all managed node ip addresses.
+
+ansible all --list-hosts
+
+SSH into each of them and set the hostnames.
+
+ssh ec2-user@< Replace Node 1 IP >
+
+sudo hostnamectl set-hostname managed-node-1
+
+exit
+
+ssh ec2-user@< Replace Node 2 IP >
+
+sudo hostnamectl set-hostname managed-node-2
+
+exit
+
+Use ping module to check if the managed nodes are able to interpret the ansible modules
+
+ansible all -m ping
+
+========================================================================================================================
+https://docs.ansible.com/ansible/2.9/modules/list_of_files_modules.html
+
+Lab 2: Exploring Ad-Hoc Commands
+
+sudo vi /etc/ansible/hosts
+
+Add the given line, by pressing "INSERT" add localhost and add the connection as local so that it wont try to use ssh
+
+localhost ansible_connection=local
+
+save the file using ESCAPE + :wq!
+
+In real life situations, one of the managed node may be used as the ansible control node. In such cases, we can make it a managed node, by adding localhost in hosts inventory file.
+
+get memory details of the hosts using the below ad-hoc command
+
+ansible all -m command -a "free -h"
+
+OR
+
+ansible all -a "free -h"
+
+Create a user ansible-new in the 2 nodes + the control node This creates the new user and the home directory /home/ansible-new
+
+ansible all -m user -a "name=ansible-new" --become
+
+lists all users in the machine. Check if ansible-new is present in the managed nodes / localhost
+
+ansible node1 -a "cat /etc/passwd"
+
+List all directories in /home. Ensure that directory 'ansible-new' is present in /home.
+
+ansible node2 -a "ls /home"
+
+Change the permission mode from '700' to '755' for the new home directory created for ansible-new
+
+ansible node1 -m file -a "dest=/home/ansible-new mode=755" --become
+
+Check if the permissions got changed
+
+ansible node1 -a "sudo ls -l /home"
+
+Create a new file in the new dir in node 1
+
+ansible node1 -m file -a "dest=/home/ansible-new/demo.txt mode=600 state=touch" --become
+
+Check if the permissions got changed
+
+ansible node1 -a "sudo ls -l /home/ansible-new/"
+
+Add content into the file
+
+ansible node1 -b -m lineinfile -a 'dest=/home/ansible-new/demo.txt line="This server is managed by Ansible"'
+
+check if the lines are added in demo.txt
+
+ansible node1 -a "sudo cat /home/ansible-new/demo.txt"
+
+You can remove the line using parameter state=absent
+
+ansible node1 -b -m lineinfile -a 'dest=/home/ansible-new/demo.txt line="This server is managed by Ansible" state=absent'
+
+check if the lines are removed from demo.txt
+
+ansible node1 -b -a "sudo cat /home/ansible-new/demo.txt"
+
+Now copy a file from ansible-control node to host node 1
+
+touch test.txt
+
+echo "This file will be copied to managed node using copy module" >> test.txt
+
+ansible node1 -m copy -a "src=test.txt dest=/home/ansible-new/test" -b
+
+--become can be replaced by -b
+
+check if the file got copied to managed node.
+
+ansible node1 -b -a "sudo ls -l /home/ansible-new/test"
+
+sudo vi /etc/ansible/hosts
+
+Remove the below line from hosts inventory file. localhost ansible_connection=local
+
+save the file using ESCAPE + :wq!
+
+=============================================================================================================
+
+Lab 3: Implementing Ansible Playbook
+
+mkdir ansible-labs && cd ansible-labs
+
+Task 1: Playbook to install apache web server
+
+vi install-apache-pb.yml
+
+Add the given content, by pressing "INSERT"
+
+---
+- name: This play will install apache web servers on all the hosts
+  hosts: all
+  become: yes
+  tasks:
+    - name: Task1 will install httpd using yum
+      yum:
+        name: httpd
+        #local cache of the package information available from the repositories configured on the system
+        update_cache: yes
+        state: latest
+    - name: Task2 will upload custom index.html into all hosts
+      copy:
+        src: /home/ec2-user/ansible-labs/index.html
+        dest: /var/www/html
+    - name: Task3 will setup attributes for file
+      file:
+        path: /var/www/html/index.html
+        owner: apache
+        group: apache
+        mode:  0644
+    - name: Task4 will start the httpd
+      service:
+        name: httpd
+        state: started
+
+save the file using ESCAPE + :wq!
+
+State as 'Present' and 'Installed' are used interchangeably. They both do the same thing i.e. It will ensure that a desired package is installed. Whereas State as 'Latest' means in addition to installation, it will go ahead and update if it is not of the latest available version.
+
+Now lets create an index.html file to be used as the landing page for the web server. In task2 of the above playbook, this 'index.html' will be copied to the document root of the httpd server.
+
+vi index.html
+
+Add the given content, by pressing "INSERT"
+
+<html>
+  <body>
+  <h1>Welcome to Ansible Training from Paperlive</h1>
+  </body>
+</html>
+
+save the file using ESCAPE + :wq!
+
+Now run the playbook so that it installs httpd to all the hosts and index.html is copied from the ansible-control
+
+ansible-playbook install-apache-pb.yml
+
+curl <private_ip of node1> 
+
+curl <private_ip of node2>
+
+
+===========================================================================================================
+
+Task 2: Uninstall apache web server
+
+With slight modification, we can change the playbook to uninstall apache (self exercise)
+
+cp install-apache-pb.yml uninstall-apache-pb.yml
+
+vi uninstall-apache-pb.yml
+
+Retain only first task. Replace 'state: latest' with 'state: absent'
+
+Check if the playbook is ok
+
+ansible-playbook uninstall-apache-pb.yml --check
+
+Now run the playbook and check in the browser if the web page exists.
+
+ansible-playbook uninstall-apache-pb.yml
+
+Check the browser with the corresponding IPv4 DNS name and ensure webpage is removed.
+
+====================================================================================================================
+
+
+Lab 4: Exploring more on Ansible Playbooks
+
+Task 1: Creating a playbook and adding content to a file
+
+cd /home/ec2-user/ansible-labs
+
+vi putfile.yml
+
+Add the given content, by pressing "INSERT"
+
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Creating a new user paperlive
+      user:
+        name: paperlive
+    - name: Creating a directory for the new user
+      file:
+        path: /home/paperlive
+        state: directory
+
+save the file using ESCAPE + :wq!
+
+Now run the playbook as follow
+
+ansible-playbook putfile.yml
+
+Now modify the playbook to add another child directory and a file inside paperlive's home directory
+
+vi putfile.yml
+
+Add the given content, by pressing "INSERT"
+
+---
+- hosts: all
+  become: yes
+  tasks:
+    -   name: Creating a new user paperlive
+        user:
+          name: paperlive
+    -   name: Creating a directory for the new user
+        file:
+          path: /home/paperlive
+          state: directory
+    -   name: creating a folder named ansible
+        file:
+          path: /home/paperlive/ansible
+          state: directory
+    -   name: creating a file within the folder ansible
+        file:
+          path: /home/paperlive/ansible/hello.txt
+          state: touch
+    -   name: Changing owner and group with permission for the file within the folder named ansible
+        file:
+          path: /home/paperlive/ansible/hello.txt
+          owner: root
+          group: paperlive
+          mode: 0665
+    -   name: adding a block of string to the file created named hello.txt
+        blockinfile:
+          path: /home/paperlive/ansible/hello.txt
+          block: |
+            This is line 1
+            This is line 2
+
+save the file using ESCAPE + :wq! if you use '|' then the new line characters will be retained.
+
+we can execute it step by step
+
+ansible-playbook putfile.yml --step
+
+check if the lines are added in hello.txt
+
+ansible all -a "sudo cat /home/paperlive/ansible/hello.txt"
+
+Check if the permissions / ownership is as per the playbook
+
+ansible all -a "sudo ls -l /home/paperlive/ansible/"
+
+
+
+
+
+
+
+
+
+============================================================================================================================
+
