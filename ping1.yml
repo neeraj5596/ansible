@@ -1,0 +1,9 @@
+---
+- name: Ping all hosts
+  hosts: all
+  tasks:
+    - name: Ping the host
+      ping:
+    - name: "Debug Module"
+      debug:
+        msg: "All Ok"
