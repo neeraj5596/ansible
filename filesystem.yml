@@ -1,0 +1,12 @@
+---
+- name: Filesystem monitoring and display each file usage human readable format
+  hosts: all
+  become: yes
+  tasks:
+    - name: Check filesystem usage
+      shell: df -h --output=source,size,used,avail,pcent,target | tail -n +2
+      register: filesystem_usage
+    - name: Display filesystem usage
+      debug:
+        msg: "Filesystem Usage:\n{{ filesystem_usage.stdout }}"
+  
