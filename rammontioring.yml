@@ -1,0 +1,11 @@
+---
+- name: Redhat sever Ram monitoring
+  hosts: all
+  become: yes
+  tasks:
+    - name: Check RAM usage
+      shell: free -m | grep Mem | awk '{print $3 " MB used, " $4 " MB free"}'
+      register: ram_usage
+    - name: Display RAM usage
+      debug:
+        msg: "RAM Usage: {{ ram_usage.stdout }}"
