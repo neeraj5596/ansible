@@ -1,0 +1,21 @@
+---
+- name: Zip old log files
+  hosts: linux_servers
+  become: yes
+
+  tasks:
+
+  - name: Find logs older than 30 days
+    find:
+      paths: /var/log
+      age: 30d
+      recurse: yes
+    register: oldlogs
+
+  - name: Zip those logs
+    shell: gzip {{ item.path }}
+    loop: "{{ oldlogs.files }}"
+
+  - name: Show total zipped logs
+    debug:
+      msg: "{{ oldlogs.matched }} log files compressed"
