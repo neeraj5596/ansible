@@ -1,11 +1,11 @@
 ---
-- name: Zip old log files
+- name: Zip the old log files
   hosts: linux_servers
   become: yes
 
   tasks:
 
-  - name: Find logs older than 30 days
+  - name: Find logs older than 30 days will be zip
     find:
       paths: /var/log
       age: 30d
