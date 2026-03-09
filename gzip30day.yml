@@ -5,7 +5,7 @@
 
   tasks:
 
-  - name: Find logs older than 30 days will be zip
+  - name: Find logs older than 30 days for zip
     find:
       paths: /var/log
       age: 30d
